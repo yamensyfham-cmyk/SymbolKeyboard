@@ -12,8 +12,8 @@ interface RecentDao {
 
     @Query("""
         SELECT s.* FROM symbols s 
-        INNER JOIN recents r ON s.unicode = r.symbol_unicode 
-        ORDER BY r.used_at DESC LIMIT :limit
+        INNER JOIN recents r ON s.unicode = r.symbolUnicode 
+        ORDER BY r.usedAt DESC LIMIT :limit
     """)
     fun getRecents(limit: Int = 30): Flow<List<Symbol>>
 

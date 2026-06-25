@@ -2,12 +2,18 @@ package com.symbolkeyboard.util
 
 import android.content.Context
 import com.symbolkeyboard.data.model.Symbol
+import dagger.hilt.android.qualifiers.ApplicationContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class SymbolParser(private val context: Context) {
+@Singleton
+class SymbolParser @Inject constructor(
+    @ApplicationContext private val context: Context
+) {
 
     data class RawSymbol(
         val unicode: String,

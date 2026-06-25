@@ -12,20 +12,20 @@ interface FavoriteDao {
 
     @Query("""
         SELECT s.* FROM symbols s 
-        INNER JOIN favorites f ON s.unicode = f.symbol_unicode 
-        ORDER BY f.added_at DESC
+        INNER JOIN favorites f ON s.unicode = f.symbolUnicode 
+        ORDER BY f.addedAt DESC
     """)
     fun getFavorites(): Flow<List<Symbol>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addFavorite(favorite: FavoriteEntity)
 
-    @Query("DELETE FROM favorites WHERE symbol_unicode = :unicode")
+    @Query("DELETE FROM favorites WHERE symbolUnicode = :unicode")
     suspend fun removeFavorite(unicode: String)
 
-    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE symbol_unicode = :unicode)")
+    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE symbolUnicode = :unicode)")
     suspend fun isFavorite(unicode: String): Boolean
 
-    @Query("SELECT symbol_unicode FROM favorites")
+    @Query("SELECT symbolUnicode FROM favorites")
     suspend fun getAllFavoriteUnicodes(): List<String>
 }

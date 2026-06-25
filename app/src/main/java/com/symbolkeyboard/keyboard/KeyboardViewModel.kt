@@ -1,12 +1,10 @@
 package com.symbolkeyboard.keyboard
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.symbolkeyboard.data.model.Symbol
 import com.symbolkeyboard.data.repository.SymbolRepository
-import dagger.hilt.android.EntryPointAccessors
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +13,8 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.launch
 
 class KeyboardViewModel(
-    private val context: Context
-) : ViewModel() {
-
     private val repository: SymbolRepository
+) : ViewModel() {
 
     private val _symbols = MutableStateFlow<List<Symbol>>(emptyList())
     val symbols: StateFlow<List<Symbol>> = _symbols.asStateFlow()
@@ -38,12 +34,6 @@ class KeyboardViewModel(
     private var symbolsJob: Job? = null
 
     init {
-        val entryPoint = EntryPointAccessors.fromApplication(
-            context,
-            KeyboardEntryPoint::class.java
-        )
-        repository = entryPoint.repository()
-
         observeSymbols()
         observeFavorites()
         observeRecents()
@@ -112,10 +102,9 @@ class KeyboardViewModel(
         }
     }
 
-    fun addRecent(char: String) {
+    fun addRecent(unicode: String) {
         viewModelScope.launch {
-            val unicodeString = char.codeToString()
-            repository.addRecent(unicodeString)
+            repository.addRecent(unicode)
         }
     }
 
@@ -125,25 +114,13 @@ class KeyboardViewModel(
         _favorites.value = emptyList()
         _recents.value = emptyList()
     }
-
-    private fun String.codeToString(): String {
-        if (this.startsWith("U+")) {
-            val codePoint = this.removePrefix("U+").toIntOrNull(16) ?: return this
-            return String(intArrayOf(codePoint), 0, 1)
-        }
-        return this
-    }
-}
-
-interface KeyboardEntryPoint {
-    fun repository(): SymbolRepository
 }
 
 class KeyboardViewModelFactory(
-    private val context: Context
+    private val repository: SymbolRepository
 ) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         @Suppress("UNCHECKED_CAST")
-        return KeyboardViewModel(context) as T
+        return KeyboardViewModel(repository) as T
     }
 }

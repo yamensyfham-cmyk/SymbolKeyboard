@@ -58,7 +58,7 @@ fun KeyboardContent(
                 recents = recents,
                 onClick = { symbol ->
                     onSymbolClick(symbol.char)
-                    viewModel?.addRecent(symbol.char)
+                    viewModel?.addRecent(symbol.unicode)
                 }
             )
         }
@@ -68,7 +68,7 @@ fun KeyboardContent(
             favorites = favorites.map { it.unicode }.toSet(),
             onSymbolClick = { symbol ->
                 onSymbolClick(symbol.char)
-                viewModel?.addRecent(symbol.char)
+                viewModel?.addRecent(symbol.unicode)
             },
             onSymbolLongClick = { symbol ->
                 viewModel?.toggleFavorite(symbol.unicode)

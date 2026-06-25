@@ -9,6 +9,7 @@ import com.symbolkeyboard.data.datastore.UserPreferencesStore
 import com.symbolkeyboard.data.local.SymbolDatabase
 import com.symbolkeyboard.data.repository.SymbolRepository
 import com.symbolkeyboard.data.repository.SymbolRepositoryImpl
+import com.symbolkeyboard.util.PowerSaver
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -59,4 +60,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSymbolRepository(impl: SymbolRepositoryImpl): SymbolRepository = impl
+
+    @Provides
+    @Singleton
+    fun providePowerSaver(@ApplicationContext context: Context): PowerSaver {
+        return PowerSaver(context)
+    }
 }

@@ -17,6 +17,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
 import com.symbolkeyboard.ui.keyboard.KeyboardContent
 import com.symbolkeyboard.ui.theme.SymbolKeyboardTheme
+import com.symbolkeyboard.data.repository.SymbolRepository
 import com.symbolkeyboard.util.PowerSaver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -26,6 +27,9 @@ class SymbolKeyboardService : InputMethodService() {
 
     @Inject
     lateinit var powerSaver: PowerSaver
+
+    @Inject
+    lateinit var repository: SymbolRepository
 
     private var keyboardViewModel: KeyboardViewModel? = null
     private var composeView: ComposeView? = null
@@ -61,7 +65,7 @@ class SymbolKeyboardService : InputMethodService() {
         isPasswordField = isPasswordInputType(info)
         if (!isPasswordField) {
             if (keyboardViewModel == null) {
-                keyboardViewModel = KeyboardViewModel(applicationContext)
+                keyboardViewModel = KeyboardViewModel(repository)
             }
             keyboardViewModel?.loadSymbols()
         }
@@ -90,7 +94,6 @@ class SymbolKeyboardService : InputMethodService() {
         inputConnection.beginBatchEdit()
         inputConnection.commitText(char, 1)
         inputConnection.endBatchEdit()
-        keyboardViewModel?.addRecent(char)
     }
 
     private var isPasswordField = false
