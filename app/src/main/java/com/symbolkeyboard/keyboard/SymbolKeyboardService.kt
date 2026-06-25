@@ -3,7 +3,6 @@ package com.symbolkeyboard.keyboard
 import android.inputmethodservice.InputMethodService
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputConnection
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,9 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
+import com.symbolkeyboard.data.repository.SymbolRepository
 import com.symbolkeyboard.ui.keyboard.KeyboardContent
 import com.symbolkeyboard.ui.theme.SymbolKeyboardTheme
-import com.symbolkeyboard.data.repository.SymbolRepository
 import com.symbolkeyboard.util.PowerSaver
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
@@ -31,11 +30,14 @@ class SymbolKeyboardService : InputMethodService() {
     @Inject
     lateinit var repository: SymbolRepository
 
-    private var keyboardViewModel: KeyboardViewModel? = null
+    private lateinit var keyboardViewModel: KeyboardViewModel
     private var composeView: ComposeView? = null
+    private var isPasswordField = false
 
     override fun onCreate() {
         super.onCreate()
+        keyboardViewModel = KeyboardViewModel(repository)
+        keyboardViewModel.loadSymbols()
     }
 
     override fun onCreateInputView(): View {
@@ -62,22 +64,15 @@ class SymbolKeyboardService : InputMethodService() {
 
     override fun onStartInputView(info: EditorInfo, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        isPasswordField = isPasswordInputType(info)
-        if (!isPasswordField) {
-            if (keyboardViewModel == null) {
-                keyboardViewModel = KeyboardViewModel(repository)
-            }
-            keyboardViewModel?.loadSymbols()
-        }
-    }
-
-    override fun onFinishInput() {
-        super.onFinishInput()
+        isPasswordField = (info.inputType and EditorInfo.TYPE_MASK_VARIATION) in listOf(
+            EditorInfo.TYPE_TEXT_VARIATION_PASSWORD,
+            EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            EditorInfo.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT
+        )
     }
 
     override fun onDestroy() {
-        keyboardViewModel?.clear()
-        keyboardViewModel = null
+        keyboardViewModel.clear()
         composeView = null
         super.onDestroy()
     }
@@ -85,7 +80,7 @@ class SymbolKeyboardService : InputMethodService() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= TRIM_MEMORY_MODERATE) {
-            keyboardViewModel?.clear()
+            keyboardViewModel.clear()
         }
     }
 
@@ -94,15 +89,6 @@ class SymbolKeyboardService : InputMethodService() {
         inputConnection.beginBatchEdit()
         inputConnection.commitText(char, 1)
         inputConnection.endBatchEdit()
-    }
-
-    private var isPasswordField = false
-
-    private fun isPasswordInputType(info: EditorInfo): Boolean {
-        val variation = info.inputType and EditorInfo.TYPE_MASK_VARIATION
-        return variation == EditorInfo.TYPE_TEXT_VARIATION_PASSWORD ||
-                variation == EditorInfo.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
-                variation == EditorInfo.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT
     }
 }
 

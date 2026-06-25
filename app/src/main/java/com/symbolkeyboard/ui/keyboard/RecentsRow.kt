@@ -3,7 +3,6 @@ package com.symbolkeyboard.ui.keyboard
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -39,8 +38,7 @@ fun RecentsRow(
                 ) { symbol ->
                     SymbolButton(
                         symbol = symbol,
-                        onClick = { onClick(symbol) },
-                        modifier = Modifier.height(48.dp)
+                        onClick = { onClick(symbol) }
                     )
                 }
             }
