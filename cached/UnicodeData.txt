@@ -1,0 +1,7 @@
+# Cached UnicodeData.txt placeholder
+# This file is a fallback used when unicode.org is unreachable during build.
+# To update this file, download the latest version from:
+#   https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt
+#
+# For a real build, the Python script will download the latest version automatically.
+# This placeholder exists only for development environments without internet access.
