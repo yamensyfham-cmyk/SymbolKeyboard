@@ -38,7 +38,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun isKeyboardActive(): Boolean {
-        val currentId = imm.currentInputMethod?.id ?: return false
+        val currentId = Settings.Secure.getString(
+            context.contentResolver,
+            Settings.Secure.DEFAULT_INPUT_METHOD
+        ) ?: return false
         return currentId.contains("symbolkeyboard")
     }
 
