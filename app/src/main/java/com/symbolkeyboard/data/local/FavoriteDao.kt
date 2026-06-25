@@ -4,18 +4,13 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.symbolkeyboard.data.model.Symbol
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface FavoriteDao {
 
-    @Query("""
-        SELECT s.* FROM symbols s 
-        INNER JOIN favorites f ON s.unicode = f.symbolUnicode 
-        ORDER BY f.addedAt DESC
-    """)
-    fun getFavorites(): Flow<List<Symbol>>
+    @Query("SELECT f.symbolUnicode FROM favorites f ORDER BY f.addedAt DESC")
+    fun getFavoriteUnicodes(): Flow<List<String>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addFavorite(favorite: FavoriteEntity)

@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-SymbolKeyboard Unicode Symbol Database Generator.
-
-Downloads UnicodeData.txt from unicode.org, extracts symbols from specific
-Unicode blocks, and outputs a clean JSON file for the Android app.
-
-Usage:
-    python generate_symbols.py [--output <path>] [--cached <path>]
-
-If the download fails, falls back to the cached UnicodeData.txt in the repo.
-"""
-
 import argparse
 import json
 import os
@@ -22,7 +10,9 @@ import urllib.error
 UNICODE_DATA_URL = "https://www.unicode.org/Public/UCD/latest/ucd/UnicodeData.txt"
 
 DEFAULT_CACHED = os.path.join(os.path.dirname(__file__), "..", "cached", "UnicodeData.txt")
-DEFAULT_OUTPUT = os.path.join(os.path.dirname(__file__), "..", "app", "src", "main", "assets", "symbols.json")
+DEFAULT_PAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "app", "src", "main", "assets", "pages")
+
+PAGE_SIZE = 60
 
 TARGET_BLOCKS = {
     "Crosses & Religious": (
@@ -134,6 +124,7 @@ TARGET_BLOCKS = {
     ),
 }
 
+
 def download_unicode_data(url: str) -> str:
     print(f"Downloading UnicodeData.txt from {url}...")
     try:
@@ -157,89 +148,6 @@ def read_cached_file(path: str) -> str:
     return data
 
 
-def parse_unicode_data(data: str) -> list:
-    symbols = []
-    lines = data.strip().splitlines()
-    print(f"Parsing {len(lines)} lines...")
-
-    # Build a quick lookup of which codepoints are in which category
-    def is_in_any_block(code_point: int) -> str:
-        for category, ranges in TARGET_BLOCKS.items():
-            for i in range(0, len(ranges), 2):
-                start, end = ranges[i], ranges[i + 1]
-                if start <= code_point <= end:
-                    return category
-        return None
-
-    for line in lines:
-        if not line.strip():
-            continue
-
-        fields = line.split(";")
-        if len(fields) < 2:
-            continue
-
-        code_hex = fields[0].strip()
-        name = fields[1].strip()
-
-        try:
-            code_point = int(code_hex, 16)
-        except ValueError:
-            continue
-
-        # Skip control characters, private use, surrogates
-        if code_point < 0x20:
-            continue
-        if 0xD800 <= code_point <= 0xDFFF:
-            continue
-        if 0xE000 <= code_point <= 0xF8FF:
-            continue
-
-        # Skip reserved/unassigned ranges
-        if name in ("<control>", "<reserved>", "<surrogate>", "<private-use>"):
-            continue
-
-        category = is_in_any_block(code_point)
-        if category is None:
-            continue
-
-        char = chr(code_point)
-
-        # Determine required font
-        font_family = ""
-        if 0x13000 <= code_point <= 0x1342F:
-            font_family = "NotoSansEgyptianHieroglyphs-Regular"
-        elif 0x12000 <= code_point <= 0x123FF:
-            font_family = "NotoSansCuneiform-Regular"
-        elif 0x10900 <= code_point <= 0x1091F:
-            font_family = "NotoSansPhoenician-Regular"
-        elif 0x16A0 <= code_point <= 0x16FF:
-            font_family = "NotoSansRunic-Regular"
-        elif 0x10330 <= code_point <= 0x1034F:
-            font_family = "NotoSansGothic-Regular"
-        elif 0x1680 <= code_point <= 0x169F:
-            font_family = "NotoSansOgham-Regular"
-        elif 0x10600 <= code_point <= 0x1077F:
-            font_family = "NotoSansLinearA-Regular"
-        elif 0x10000 <= code_point <= 0x1007F:
-            font_family = "NotoSansLinearB-Regular"
-        elif 0x14400 <= code_point <= 0x1467F:
-            font_family = "NotoSansAnatolianHieroglyphs-Regular"
-
-        block_name = determine_block_name(code_point)
-
-        symbols.append({
-            "unicode": f"U+{code_hex.upper().zfill(4)}",
-            "char": char,
-            "name": name,
-            "category": category.lower().replace(" & ", "_and_").replace(" ", "_"),
-            "block": block_name,
-            "required_font_family": font_family,
-        })
-
-    return symbols
-
-
 def determine_block_name(code_point: int) -> str:
     blocks = [
         (0x0000, 0x007F, "Basic Latin"),
@@ -256,7 +164,7 @@ def determine_block_name(code_point: int) -> str:
         (0x0590, 0x05FF, "Hebrew"),
         (0x0600, 0x06FF, "Arabic"),
         (0x0700, 0x074F, "Syriac"),
-        (0x0750, 0x077F, "Arabic Supplement"),
+        (0x0750, 0x07BF, "Arabic Supplement"),
         (0x0780, 0x07BF, "Thaana"),
         (0x07C0, 0x07FF, "NKo"),
         (0x0800, 0x083F, "Samaritan"),
@@ -347,7 +255,7 @@ def determine_block_name(code_point: int) -> str:
         (0x2DE0, 0x2DFF, "Cyrillic Extended-A"),
         (0x2E00, 0x2E7F, "Supplemental Punctuation"),
         (0x2E80, 0x2EFF, "CJK Radicals Supplement"),
-        (0x2F00, 0x2FDF, "Kangxi Radicals"),
+        (0x2F00, 0xFDFF, "Kangxi Radicals"),
         (0x2FF0, 0x2FFF, "Ideographic Description Characters"),
         (0x3000, 0x303F, "CJK Symbols and Punctuation"),
         (0x3040, 0x309F, "Hiragana"),
@@ -579,15 +487,148 @@ def determine_block_name(code_point: int) -> str:
     return "Unknown"
 
 
-def write_json(symbols: list, output_path: str):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
-        json.dump(symbols, f, ensure_ascii=False, separators=(",", ":"))
-    print(f"Wrote {len(symbols)} symbols to {output_path}")
+def parse_unicode_data(data: str) -> list:
+    symbols = []
+    lines = data.strip().splitlines()
+    print(f"Parsing {len(lines)} lines...")
+
+    def is_in_any_block(code_point: int) -> str:
+        for category, ranges in TARGET_BLOCKS.items():
+            for i in range(0, len(ranges), 2):
+                start, end = ranges[i], ranges[i + 1]
+                if start <= code_point <= end:
+                    return category
+        return None
+
+    for line in lines:
+        if not line.strip():
+            continue
+
+        fields = line.split(";")
+        if len(fields) < 2:
+            continue
+
+        code_hex = fields[0].strip()
+        name = fields[1].strip()
+
+        try:
+            code_point = int(code_hex, 16)
+        except ValueError:
+            continue
+
+        if code_point < 0x20:
+            continue
+        if 0xD800 <= code_point <= 0xDFFF:
+            continue
+        if 0xE000 <= code_point <= 0xF8FF:
+            continue
+
+        if name in ("<control>", "<reserved>", "<surrogate>", "<private-use>"):
+            continue
+
+        category = is_in_any_block(code_point)
+        if category is None:
+            continue
+
+        char = chr(code_point)
+
+        font_family = ""
+        if 0x13000 <= code_point <= 0x1342F:
+            font_family = "NotoSansEgyptianHieroglyphs-Regular"
+        elif 0x12000 <= code_point <= 0x123FF:
+            font_family = "NotoSansCuneiform-Regular"
+        elif 0x10900 <= code_point <= 0x1091F:
+            font_family = "NotoSansPhoenician-Regular"
+        elif 0x16A0 <= code_point <= 0x16FF:
+            font_family = "NotoSansRunic-Regular"
+        elif 0x10330 <= code_point <= 0x1034F:
+            font_family = "NotoSansGothic-Regular"
+        elif 0x1680 <= code_point <= 0x169F:
+            font_family = "NotoSansOgham-Regular"
+        elif 0x10600 <= code_point <= 0x1077F:
+            font_family = "NotoSansLinearA-Regular"
+        elif 0x10000 <= code_point <= 0x1007F:
+            font_family = "NotoSansLinearB-Regular"
+        elif 0x14400 <= code_point <= 0x1467F:
+            font_family = "NotoSansAnatolianHieroglyphs-Regular"
+
+        block_name = determine_block_name(code_point)
+
+        symbols.append({
+            "unicode": f"U+{code_hex.upper().zfill(4)}",
+            "char": char,
+            "name": name,
+            "category": category.lower().replace(" & ", "_and_").replace(" ", "_"),
+            "block": block_name,
+            "required_font_family": font_family,
+        })
+
+    return symbols
 
 
-def create_cached_fallback(output_path: str):
-    """Create a minimal cached UnicodeData.txt if one doesn't exist."""
+def write_page_files(symbols: list, pages_dir: str):
+    os.makedirs(pages_dir, exist_ok=True)
+
+    total_symbols = len(symbols)
+    total_pages = (total_symbols + PAGE_SIZE - 1) // PAGE_SIZE
+    print(f"Total symbols: {total_symbols}, pages: {total_pages}")
+
+    index_entries = []
+
+    for page_idx in range(total_pages):
+        start = page_idx * PAGE_SIZE
+        end = min(start + PAGE_SIZE, total_symbols)
+        page_symbols = symbols[start:end]
+
+        page_file = os.path.join(pages_dir, f"page_{page_idx:03d}.json")
+        page_data = []
+        for sym in page_symbols:
+            entry = {
+                "unicode": sym["unicode"],
+                "char": sym["char"],
+                "name": sym["name"],
+                "category": sym["category"],
+                "block": sym["block"],
+                "required_font_family": sym["required_font_family"],
+            }
+            page_data.append(entry)
+
+            index_entries.append({
+                "unicode": sym["unicode"],
+                "char": sym["char"],
+                "name": sym["name"],
+                "category": sym["category"],
+                "block": sym["block"],
+                "required_font_family": sym["required_font_family"],
+                "page": page_idx,
+            })
+
+        with open(page_file, "w", encoding="utf-8", newline="\n") as f:
+            json.dump(page_data, f, ensure_ascii=False, separators=(",", ":"))
+        print(f"  Wrote {page_file} ({len(page_symbols)} symbols)")
+
+    index_file = os.path.join(pages_dir, "symbols_index.json")
+    index_data = {
+        "totalPages": total_pages,
+        "totalSymbols": total_symbols,
+        "symbols": index_entries,
+    }
+    with open(index_file, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(index_data, f, ensure_ascii=False, separators=(",", ":"))
+    print(f"  Wrote {index_file} ({len(index_entries)} index entries)")
+
+    categories = {}
+    for s in symbols:
+        cat = s["category"]
+        categories[cat] = categories.get(cat, 0) + 1
+    print("\nPer-category counts:")
+    for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
+        print(f"  {cat}: {count}")
+
+    print(f"\nTotal pages generated: {total_pages}")
+
+
+def create_cached_fallback():
     cached_dir = os.path.dirname(DEFAULT_CACHED)
     os.makedirs(cached_dir, exist_ok=True)
     if not os.path.exists(DEFAULT_CACHED):
@@ -598,7 +639,7 @@ def create_cached_fallback(output_path: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Generate symbol database for SymbolKeyboard")
-    parser.add_argument("--output", default=DEFAULT_OUTPUT, help="Output JSON path")
+    parser.add_argument("--pages-dir", default=DEFAULT_PAGES_DIR, help="Output pages directory")
     parser.add_argument("--cached", default=DEFAULT_CACHED, help="Cached UnicodeData.txt path")
     args = parser.parse_args()
 
@@ -611,24 +652,16 @@ def main():
         data = read_cached_file(args.cached)
         if data is None:
             print("Error: Could not download and no cached file available.")
-            print("Creating empty placeholder symbol database.")
-            write_json([], args.output)
-            create_cached_fallback(args.output)
+            print("Creating minimal placeholder pages.")
+            write_page_files([], args.pages_dir)
+            create_cached_fallback()
             sys.exit(1)
 
     symbols = parse_unicode_data(data)
-    write_json(symbols, args.output)
+    write_page_files(symbols, args.pages_dir)
 
     total_count = len(symbols)
     print(f"\nTotal symbols generated: {total_count}")
-
-    categories = {}
-    for s in symbols:
-        cat = s["category"]
-        categories[cat] = categories.get(cat, 0) + 1
-    print("\nPer-category counts:")
-    for cat, count in sorted(categories.items(), key=lambda x: -x[1]):
-        print(f"  {cat}: {count}")
 
 
 if __name__ == "__main__":

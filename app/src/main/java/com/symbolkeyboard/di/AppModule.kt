@@ -30,12 +30,8 @@ object AppModule {
             context,
             SymbolDatabase::class.java,
             "symbol_keyboard.db"
-        ).build()
+        ).fallbackToDestructiveMigration().build()
     }
-
-    @Provides
-    @Singleton
-    fun provideSymbolDao(database: SymbolDatabase) = database.symbolDao()
 
     @Provides
     @Singleton
